@@ -1,0 +1,32 @@
+# Dokku apps, declared as code.
+# When you push a change to this file, the "Sync apps" workflow applies it to the VPS:
+#   - creates the app (if missing) and sets its domains, port and memory limit
+#   - writes the deploy secrets (DOKKU_*) into the app's GitHub repo
+#
+# Removing an app from this file does NOT delete it from the VPS (on purpose).
+# To delete one:  ssh root@VPS dokku apps:destroy <app> --force
+#
+# Per-app fields:
+#   name            (required)              Dokku app name: lowercase letters, digits and '-'
+#   subdomain       (default: name)         -> <subdomain>.<DOKKU_DOMAIN>
+#   domains         (optional)              full list of domains; overrides subdomain
+#   port            (default: 5000)         port the container listens on
+#   memory          (optional)              RAM limit, e.g. 256m, 512m, 1g
+#   wait_to_retire  (default: 30)           seconds the old container lives after a deploy
+#   repo            (optional)              owner/name of the app's repo, to receive deploy secrets
+#
+# Any of port, memory and wait_to_retire can also go under `defaults:`.
+
+defaults:
+  port: 5000
+  wait_to_retire: 30
+
+apps: []
+#  - name: my-api
+#    memory: 512m
+#    repo: YOUR-USER/my-api
+#
+#  - name: website
+#    port: 3000
+#    domains: [example.com, www.example.com]
+#    repo: YOUR-USER/website

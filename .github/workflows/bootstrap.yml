@@ -1,0 +1,94 @@
+name: Bootstrap VPS
+
+# Manual and idempotent: hardening, Dokku, Let's Encrypt, ghcr.io login and the deploy key.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vps
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VPS_HOST: ${{ vars.VPS_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check configuration
+        env:
+          KNOWN_HOSTS: ${{ vars.VPS_KNOWN_HOSTS }}
+          DOKKU_DOMAIN: ${{ vars.DOKKU_DOMAIN }}
+          LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL }}
+          HAS_SSH_KEY: ${{ secrets.VPS_SSH_KEY != '' }}
+        run: |
+          missing=()
+          for v in VPS_HOST KNOWN_HOSTS DOKKU_DOMAIN LETSENCRYPT_EMAIL; do
+            [[ -n "${!v}" ]] || missing+=("$v")
+          done
+          [[ "$HAS_SSH_KEY" == "true" ]] || missing+=(VPS_SSH_KEY)
+          if (( ${#missing[@]} )); then
+            echo "::error::Missing: ${missing[*]}. Run scripts/init-github.sh first."
+            exit 1
+          fi
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Run bootstrap on the VPS
+        env:
+          DOKKU_DOMAIN: ${{ vars.DOKKU_DOMAIN }}
+          LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL }}
+          DOKKU_TAG: ${{ vars.DOKKU_TAG }}
+          SWAP_SIZE: ${{ vars.SWAP_SIZE }}
+        run: |
+          remote_env=$(printf 'export %s=%q; ' \
+            DOKKU_DOMAIN "$DOKKU_DOMAIN" \
+            LETSENCRYPT_EMAIL "$LETSENCRYPT_EMAIL" \
+            DOKKU_TAG "$DOKKU_TAG" \
+            SWAP_SIZE "$SWAP_SIZE")
+          ssh "root@$VPS_HOST" "$remote_env bash -s" < scripts/bootstrap-vps.sh
+
+      - name: Log the VPS in to ghcr.io (private images)
+        env:
+          GHCR_USER: ${{ vars.GHCR_USER || github.repository_owner }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        run: |
+          if [[ -z "$GHCR_TOKEN" ]]; then
+            echo "::notice::GHCR_TOKEN not set — skipping (only public images can be deployed)."
+            exit 0
+          fi
+          printf '%s' "$GHCR_TOKEN" |
+            ssh "root@$VPS_HOST" dokku registry:login --global --password-stdin ghcr.io "$GHCR_USER"
+
+      - name: Authorize the deploy key in Dokku
+        env:
+          DEPLOY_KEY: ${{ secrets.DOKKU_CI_SSH_KEY }}
+        run: |
+          if [[ -z "$DEPLOY_KEY" ]]; then
+            echo "::warning::DOKKU_CI_SSH_KEY not set — app repos will not be able to deploy."
+            exit 0
+          fi
+          key_file="$(mktemp)"
+          printf '%s\n' "$DEPLOY_KEY" > "$key_file"
+          chmod 600 "$key_file"
+          pub="$(ssh-keygen -y -f "$key_file")"
+          rm -f "$key_file"
+          body="$(awk '{print $2}' <<<"$pub")"
+          if ssh "root@$VPS_HOST" grep -qF "$body" /home/dokku/.ssh/authorized_keys; then
+            echo "Deploy key already authorized."
+          else
+            printf '%s\n' "$pub" | ssh "root@$VPS_HOST" dokku ssh-keys:add github-actions
+          fi
