@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vps-infra</title>
+<meta name="description" content="Turn a cheap VPS into a small PaaS with Dokku, managed entirely from GitHub Actions.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f4f3ec;
+  --text: #16171d;
+  --muted: #867e8e;
+  --stroke: #e5e4e7;
+  --brand: #6c3bff;
+  --brand-2: #6b77f8;
+  --code-bg: #0c0912;
+  --code-text: #e9e6f0;
+  --code-muted: #867e8e;
+  --zest: #22ff73;
+  --aqua: #32f3e9;
+  --vite: #b39aff;
+  --heading: "Space Grotesk", system-ui, sans-serif;
+  --sans: Inter, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0912;
+    --bg-soft: #14121a;
+    --text: #ffffff;
+    --muted: #a59dad;
+    --stroke: #3b3440;
+    --brand: #b39aff;
+    --code-bg: #14121a;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+code {
+  font-family: var(--mono);
+  font-size: .875em;
+  background: var(--bg-soft);
+  border: 1px solid var(--stroke);
+  border-radius: 4px;
+  padding: .1em .35em;
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+/* nav */
+nav {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--stroke);
+}
+nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+.logo { display: flex; align-items: center; gap: 10px; font: 700 18px var(--heading); text-decoration: none; }
+.logo-mark {
+  width: 26px; height: 26px; border-radius: 6px;
+  background: linear-gradient(135deg, var(--brand-2), #863bff);
+  display: grid; place-items: center; color: #fff; font: 600 13px var(--mono);
+}
+.nav-links { display: flex; gap: 4px; }
+.nav-links a { font: 500 15px var(--heading); text-decoration: none; padding: 8px 12px; border-radius: 6px; }
+.nav-links a:hover { background: var(--bg-soft); }
+@media (max-width: 720px) { .nav-links a:not(.gh) { display: none; } }
+
+/* hero */
+.hero {
+  position: relative; overflow: hidden;
+  padding: 96px 0 72px; text-align: center;
+  border-bottom: 1px solid var(--stroke);
+}
+.hero::before {
+  content: ""; position: absolute; inset: -40% -10% auto; height: 520px; z-index: -1;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--brand) 22%, transparent), transparent 65%);
+}
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 500 13px var(--mono); text-transform: uppercase; letter-spacing: .08em;
+  color: var(--brand);
+  border: 1px solid var(--stroke); background: var(--bg); border-radius: 999px; padding: 6px 14px;
+}
+.eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--zest); box-shadow: 0 0 8px var(--zest); }
+h1 {
+  font: 600 clamp(40px, 7vw, 72px)/1.05 var(--heading);
+  letter-spacing: -.03em; margin: 24px auto 20px; max-width: 900px;
+}
+h1 .grad {
+  background: linear-gradient(110deg, var(--brand-2), #863bff 50%, var(--brand));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.lead { font-size: 19px; color: var(--muted); max-width: 640px; margin: 0 auto; }
+.ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 36px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 500 15px var(--heading); text-decoration: none;
+  padding: 12px 22px; border-radius: 8px; border: 1px solid var(--stroke);
+  transition: opacity .15s, transform .15s;
+}
+.btn:hover { opacity: .88; transform: translateY(-1px); }
+.btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.license { margin-top: 20px; font-size: 14px; color: var(--muted); }
+
+/* terminal */
+.term {
+  background: var(--code-bg); color: var(--code-text);
+  border: 1px solid #3b3440; border-radius: 12px;
+  font: 13.5px/1.7 var(--mono); text-align: left; overflow: hidden;
+  box-shadow: 0 30px 60px -30px rgba(40, 0, 80, .45);
+}
+.term-bar { display: flex; align-items: center; gap: 6px; padding: 12px 16px; border-bottom: 1px solid #3b3440; }
+.term-bar i { width: 10px; height: 10px; border-radius: 50%; background: #3b3440; }
+.term-bar span { margin-left: 10px; color: var(--code-muted); font-size: 12px; }
+.term pre { margin: 0; padding: 18px 20px; overflow-x: auto; }
+.term .c { color: var(--code-muted); }
+.term .p { color: var(--vite); }
+.term .ok { color: var(--zest); }
+.term .u { color: var(--aqua); }
+.hero .term { max-width: 760px; margin: 56px auto 0; }
+
+/* sections */
+section { padding: 88px 0; border-bottom: 1px solid var(--stroke); }
+section.soft { background: var(--bg-soft); }
+.label { font: 500 13px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--brand); margin: 0 0 12px; }
+h2 { font: 600 clamp(28px, 4vw, 40px)/1.15 var(--heading); letter-spacing: -.02em; margin: 0 0 16px; }
+h3 { font: 600 20px/1.3 var(--heading); margin: 0 0 8px; }
+.sub { color: var(--muted); max-width: 620px; margin: 0 0 40px; font-size: 17px; }
+
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.card {
+  background: var(--bg); border: 1px solid var(--stroke); border-radius: 12px; padding: 28px;
+}
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+.icon {
+  width: 40px; height: 40px; border-radius: 8px; margin-bottom: 20px;
+  display: grid; place-items: center; font: 600 15px var(--mono);
+  background: color-mix(in srgb, var(--brand) 12%, transparent); color: var(--brand);
+}
+
+/* steps */
+.steps { list-style: none; padding: 0; margin: 0; counter-reset: s; display: grid; gap: 12px; }
+.steps li {
+  counter-increment: s; position: relative;
+  background: var(--bg); border: 1px solid var(--stroke); border-radius: 12px;
+  padding: 20px 24px 20px 72px;
+}
+.steps li::before {
+  content: counter(s); position: absolute; left: 24px; top: 18px;
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; font: 600 14px var(--mono);
+  background: var(--text); color: var(--bg);
+}
+.steps .term { margin-top: 14px; }
+.note {
+  margin-top: 20px; padding: 16px 20px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, #f50 40%, var(--stroke));
+  background: color-mix(in srgb, #f50 7%, var(--bg)); font-size: 15px;
+}
+
+/* tables */
+.table-wrap { border: 1px solid var(--stroke); border-radius: 12px; overflow-x: auto; background: var(--bg); }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th, td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--stroke); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: var(--bg-soft); }
+td:first-child { white-space: nowrap; }
+td .tag { font: 500 12px var(--mono); color: var(--muted); }
+
+.two { display: grid; gap: 48px; grid-template-columns: 1fr 1fr; align-items: start; }
+@media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
+.checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.checks li { padding-left: 30px; position: relative; }
+.checks li::before { content: "✓"; position: absolute; left: 0; color: var(--brand); font-weight: 600; }
+
+/* cta + footer */
+.cta {
+  background: #0c0912; color: #fff; text-align: center; border: 0;
+  background-image: radial-gradient(ellipse at 50% 120%, #6c3bff 0%, #140033 45%, #0c0912 75%);
+}
+.cta h2 { max-width: 720px; margin: 0 auto 28px; }
+.cta .btn.primary { background: #fff; color: #0c0912; border-color: #fff; }
+.cta .btn:not(.primary) { color: #fff; border-color: #3b3440; }
+footer { padding: 32px 0; font-size: 14px; color: var(--muted); }
+footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="logo" href="#"><span class="logo-mark">&gt;_</span>vps-infra</a>
+    <div class="nav-links">
+      <a href="#setup">Setup</a>
+      <a href="#apps">Apps</a>
+      <a href="#operations">Operations</a>
+      <a class="gh" href="https://github.com/joaoalberto-dev/vps-infra">GitHub ↗</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Dokku + GitHub Actions</span>
+    <h1>Turn a cheap VPS into a <span class="grad">small PaaS</span></h1>
+    <p class="lead">Declare apps as code, build on GitHub runners, deploy with zero downtime and automatic HTTPS. Managed entirely from GitHub Actions.</p>
+    <div class="ctas">
+      <a class="btn primary" href="#setup">Get started →</a>
+      <a class="btn" href="https://github.com/joaoalberto-dev/vps-infra/generate">Use this template</a>
+    </div>
+    <p class="license">Free and open source under the MIT license.</p>
+
+    <div class="term">
+      <div class="term-bar"><i></i><i></i><i></i><span>how it works</span></div>
+<pre><span class="p">this repo</span> ──(Actions)──▶ VPS: bootstrap, apps, domains, memory limits
+<span class="p">app repo</span>  ──(Actions)──▶ docker build ─▶ ghcr.io ─▶ Dokku <span class="c">(git:from-image)</span>
+                                                  └─▶ <span class="u">https://&lt;app&gt;.example.com</span></pre>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <p class="label">Why</p>
+    <h2>Everything a small server needs</h2>
+    <p class="sub">Nothing runs on your machine except <code>init-github.sh</code>, once.</p>
+    <div class="grid">
+      <div class="card"><div class="icon">{}</div><h3>Apps as code</h3><p>Declare apps in <code>apps.yml</code>, push, and they are created on the server.</p></div>
+      <div class="card"><div class="icon">⚡</div><h3>No builds on the VPS</h3><p>Images are built on GitHub runners, so a 1 vCPU / 1–4 GB box is enough.</p></div>
+      <div class="card"><div class="icon">↻</div><h3>Zero-downtime + HTTPS</h3><p>Rolling deploys and automatic Let's Encrypt certificates on every app.</p></div>
+      <div class="card"><div class="icon">⛨</div><h3>Hardened by default</h3><p>UFW, fail2ban, key-only SSH, unattended upgrades and swap.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="soft">
+  <div class="wrap two">
+    <div>
+      <p class="label">Requirements</p>
+      <h2>What you need</h2>
+      <ul class="checks">
+        <li>A VPS running <strong>Ubuntu 22.04/24.04</strong> (any provider) with root SSH access.</li>
+        <li>A domain with a <strong>wildcard DNS record</strong> pointing to the VPS: <code>A *.example.com → &lt;VPS IP&gt;</code>. Every new app then gets a subdomain with no DNS changes.</li>
+        <li><a href="https://cli.github.com/"><code>gh</code></a> installed and logged in (<code>gh auth login</code>), only for the one-time setup.</li>
+      </ul>
+    </div>
+    <div>
+      <p class="label">Layout</p>
+      <h2>What's in the repo</h2>
+      <div class="table-wrap">
+        <table>
+          <tr><th>File</th><th>Purpose</th></tr>
+          <tr><td><code>apps.yml</code></td><td><strong>App declarations.</strong> Edit and push; the workflow applies them</td></tr>
+          <tr><td><code>bootstrap.yml</code></td><td>Prepares the VPS. Manual and idempotent</td></tr>
+          <tr><td><code>sync-apps.yml</code></td><td>Applies <code>apps.yml</code> on every push</td></tr>
+          <tr><td><code>deploy-dokku.yml</code></td><td><strong>Reusable</strong> build-and-deploy workflow for app repos</td></tr>
+          <tr><td><code>examples/deploy.yml</code></td><td>The workflow to copy into each app repo</td></tr>
+          <tr><td><code>scripts/*.sh</code></td><td>Bootstrap, sync and one-time GitHub setup</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="setup">
+  <div class="wrap">
+    <p class="label">Setup · once</p>
+    <h2>From empty VPS to PaaS in five steps</h2>
+    <p class="sub">The bootstrap takes 5–10 minutes and can be re-run safely.</p>
+    <ol class="steps">
+      <li>Click <strong>Use this template</strong> (or fork), then clone your copy.</li>
+      <li>Fill in your settings and run the setup script:
+        <div class="term"><pre><span class="c">$</span> cp .env.example .env
+<span class="c">$</span> scripts/init-github.sh</pre></div>
+      </li>
+      <li>Authorize the root key the script prints on the VPS (your provider's "SSH keys" page, or <code>ssh-copy-id</code>).</li>
+      <li>If your repo is <strong>private</strong>: <em>Settings → Actions → General → Access</em> → "Accessible from repositories owned by the user", so your app repos can call <code>deploy-dokku.yml</code>.</li>
+      <li><strong>Actions → Bootstrap VPS → Run workflow.</strong></li>
+    </ol>
+    <div class="note">⚠️ The bootstrap disables SSH password login, but <strong>only</strong> if it finds a key in <code>/root/.ssh/authorized_keys</code>. Make sure you can log in with your own key too.</div>
+  </div>
+</section>
+
+<section class="soft">
+  <div class="wrap">
+    <p class="label">Configuration</p>
+    <h2>Secrets and variables</h2>
+    <p class="sub"><code>init-github.sh</code> sets all of these for you.</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Name</th><th>Type</th><th>What it is</th></tr>
+        <tr><td><code>VPS_HOST</code></td><td class="tag">variable</td><td>VPS IP or hostname</td></tr>
+        <tr><td><code>VPS_KNOWN_HOSTS</code></td><td class="tag">variable</td><td>VPS host key (protects against MITM)</td></tr>
+        <tr><td><code>DOKKU_DOMAIN</code></td><td class="tag">variable</td><td>Base domain, e.g. <code>example.com</code></td></tr>
+        <tr><td><code>LETSENCRYPT_EMAIL</code></td><td class="tag">variable</td><td>Email for Let's Encrypt notices</td></tr>
+        <tr><td><code>GHCR_USER</code></td><td class="tag">variable</td><td>GitHub user that owns the images</td></tr>
+        <tr><td><code>DOKKU_TAG</code></td><td class="tag">variable · optional</td><td>Dokku version to install</td></tr>
+        <tr><td><code>SWAP_SIZE</code></td><td class="tag">variable · optional</td><td>Swap file size, default <code>2G</code>; <code>0</code> disables it</td></tr>
+        <tr><td><code>VPS_SSH_KEY</code></td><td class="tag">secret</td><td><strong>Root</strong> key, used only by this repo's workflows</td></tr>
+        <tr><td><code>DOKKU_CI_SSH_KEY</code></td><td class="tag">secret</td><td>Deploy key (<code>dokku</code> user, not root), copied into your app repos</td></tr>
+        <tr><td><code>GHCR_TOKEN</code></td><td class="tag">secret · optional</td><td><a href="https://github.com/settings/tokens/new?scopes=read:packages&amp;description=dokku-ghcr">Classic PAT</a> with <code>read:packages</code>, so the VPS can pull <strong>private</strong> images. Fine-grained tokens don't work with ghcr.io</td></tr>
+        <tr><td><code>GH_ADMIN_TOKEN</code></td><td class="tag">secret · optional</td><td><a href="https://github.com/settings/personal-access-tokens/new">Fine-grained PAT</a> with access to your app repos and <em>Secrets: Read and write</em>, so Sync can write their deploy secrets. Without it, set them by hand</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="apps">
+  <div class="wrap two">
+    <div>
+      <p class="label">Adding an app</p>
+      <h2>Declare it, push it, it's live</h2>
+      <ol class="steps">
+        <li>In the app's repo, add a <code>Dockerfile</code> and copy <a href="https://github.com/joaoalberto-dev/vps-infra/blob/main/examples/deploy.yml"><code>examples/deploy.yml</code></a> to <code>.github/workflows/deploy.yml</code>. Replace <code>YOUR-USER</code> and <code>app:</code>.</li>
+        <li>Declare the app in <code>apps.yml</code> and push. <strong>Sync apps</strong> creates it in Dokku and writes the <code>DOKKU_*</code> secrets into the app's repo.</li>
+        <li>Push to <code>main</code> in the app's repo. HTTPS is enabled on the first deploy.</li>
+      </ol>
+      <p class="sub" style="margin-top:20px">See the comments in <a href="https://github.com/joaoalberto-dev/vps-infra/blob/main/apps.yml"><code>apps.yml</code></a> for every field: custom domains, port, memory, and so on.</p>
+    </div>
+    <div class="term">
+      <div class="term-bar"><i></i><i></i><i></i><span>apps.yml</span></div>
+<pre><span class="p">apps</span>:
+  - <span class="p">name</span>: my-api
+    <span class="p">memory</span>: 512m
+    <span class="p">repo</span>: YOUR-USER/my-api
+
+<span class="c">$</span> git push
+<span class="ok">✓</span> Sync apps: created my-api
+<span class="ok">✓</span> Deploy: <span class="u">https://my-api.example.com</span></pre>
+    </div>
+  </div>
+</section>
+
+<section id="operations" class="soft">
+  <div class="wrap">
+    <p class="label">Operations</p>
+    <h2>Day-to-day</h2>
+    <p class="sub">Everything else is plain Dokku over SSH.</p>
+    <div class="grid">
+      <div class="card"><h3>Logs</h3><p><code>ssh dokku@VPS logs my-api -t</code></p></div>
+      <div class="card"><h3>Environment variables</h3><p><code>ssh dokku@VPS config:set my-api KEY=value</code> (restarts the app)</p></div>
+      <div class="card"><h3>Rollback</h3><p>Re-run the deploy workflow of an earlier commit (<em>Actions → Deploy → Re-run</em>).</p></div>
+      <div class="card"><h3>Database</h3><p><code>dokku plugin:install https://github.com/dokku/dokku-postgres.git</code> as root, then <code>postgres:create my-db</code> and <code>postgres:link my-db my-api</code> (injects <code>DATABASE_URL</code>).</p></div>
+      <div class="card"><h3>Deleting an app</h3><p>Removing it from <code>apps.yml</code> deletes nothing, on purpose. To delete: <code>ssh root@VPS dokku apps:destroy my-api --force</code></p></div>
+      <div class="card"><h3>Upgrading Dokku</h3><p>Change the <code>DOKKU_TAG</code> variable (or the default in <code>scripts/bootstrap-vps.sh</code>) and run Bootstrap again.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="label">Small servers</p>
+    <h2>Built for 1 GB boxes</h2>
+    <div class="grid">
+      <div class="card"><div class="icon">◎</div><p>Dokku itself uses very little (nginx + Docker).</p></div>
+      <div class="card"><div class="icon">⇄</div><p>During a deploy, old and new containers run side by side for <code>wait_to_retire</code> seconds (30 by default). The swap file absorbs that spike.</p></div>
+      <div class="card"><div class="icon">▤</div><p>Set <code>memory</code> on each app so one app can't take down the others.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <div class="wrap">
+    <h2>Your own PaaS, for the price of a cheap VPS</h2>
+    <div class="ctas">
+      <a class="btn primary" href="https://github.com/joaoalberto-dev/vps-infra/generate">Use this template →</a>
+      <a class="btn" href="https://github.com/joaoalberto-dev/vps-infra">View on GitHub</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Released under the <a href="https://github.com/joaoalberto-dev/vps-infra/blob/main/LICENSE">MIT License</a>.</span>
+    <span>Powered by <a href="https://dokku.com">Dokku</a> and GitHub Actions.</span>
+  </div>
+</footer>
+
+</body>
+</html>
