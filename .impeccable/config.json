@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "instrument sans",
+        "createdAt": "2026-11-17T02:28:28.860Z",
+        "reason": "Claude's choice: neo-grotesk chosen for the transit-signage direction the user picked; not on the listed overused faces"
+      }
+    ]
+  }
+}
